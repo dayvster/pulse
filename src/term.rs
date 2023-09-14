@@ -65,7 +65,4 @@ pub struct Args {
         default_value = "1.0"
     )]
     pub interval: Option<f64>,
-
-    #[arg(short = 'p', short = 's', help = "Similar to the ps command.")]
-    pub psmode: Option<bool>,
 }

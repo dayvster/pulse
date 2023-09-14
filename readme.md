@@ -8,12 +8,15 @@ A command-line tool written in Rust to display live updating CPU and MEM usage o
 
 ## Table of Contents
 
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Options](#options)
-- [Contributing](#contributing)
-- [License](#license)
+- [Pulse](#pulse)
+  - [Description](#description)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Options](#options)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Features
 
@@ -64,10 +67,8 @@ Options:
                              
   -i, --interval <INTERVAL>  The interval in seconds between each sample.
                              EXAMPLE: 1.5 [default: 1.0]
-  -s <PSMODE>                Similar to the ps command. [possible values: true, false]
   -h, --help                 Print help
   -V, --version              Print version
-
 ```
 
 

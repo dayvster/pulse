@@ -22,11 +22,11 @@ impl Utils {
                 pid = Some(p.1.pid())
             }
         }
-        pid = self.get_parent_proc(&pid.unwrap());
         if pid.is_none() {
             println!("No process found with name: {}", name);
             std::process::exit(1);
         }
+        pid = self.get_parent_proc(&pid.unwrap());
         pid.unwrap()
     }
 
