@@ -50,7 +50,7 @@ The above command will monitor the CPU and MEM usage of the process with PID 123
 
 The tool will display real-time CPU and MEM usage information for the specified process. To exit the monitoring mode, press Ctrl + C.
 
-Options
+## Options
 
     --pid <PID>: Specify the PID of the process to monitor.
     --name <process name>: Specify the name of the process to monitor.
@@ -62,11 +62,11 @@ Options
 
 Contributions are welcome! If you'd like to contribute to the Pulse project, please follow these steps:
 
-    Fork the repository.
-    Create a new branch for your feature or bugfix: git checkout -b feature-name.
-    Make your changes and commit them: git commit -m 'Add some feature'.
-    Push to the branch: git push origin feature-name.
-    Create a pull request on GitHub.
+1) Fork the repository.
+2) Create a new branch for your feature or bugfix: git checkout -b feature-name.
+3) Make your changes and commit them: git commit -m 'Add some feature'.
+4) Push to the branch: git push origin feature-name.
+5) Create a pull request on GitHub.
 
 ## License
 
