@@ -84,4 +84,7 @@ impl Utils {
             });
         Some(cpu_total)
     }
+    pub fn get_collector(&self) -> &ProcessCollector {
+        &self.collector
+    }
 }
