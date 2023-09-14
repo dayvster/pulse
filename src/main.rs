@@ -18,6 +18,11 @@ fn main() {
     let utils = utils::Utils::new();
     let term: term::Term = term::Term::new();
 
+    if args.interval.unwrap() <= 0.0 {
+        println!("Don't do that.");
+        std::process::exit(1);
+    }
+
     if args.name != None {
         let name = args.name.unwrap();
         let interval = args.interval.unwrap_or(1.0);
