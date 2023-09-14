@@ -1,7 +1,5 @@
-use std::{
-    io::{stdin, stdout, Read, Stdin, StdinLock, Stdout, Write},
-    os::fd::{AsFd, AsRawFd},
-};
+use std::io::{stdin, stdout, Stdin, Stdout, Write};
+use termion::color::AnsiValue;
 
 use clap::Parser;
 use termion::{
@@ -9,6 +7,13 @@ use termion::{
     cursor::{self, DetectCursorPos},
     raw::IntoRawMode,
 };
+
+enum Color {
+    Green,
+    Yellow,
+    LightYellow,
+    Red,
+}
 
 pub struct Term {
     stdout: Stdout,
@@ -72,16 +77,16 @@ impl Term {
         };
 
         let output = format!(
-            "{}{}PID: {} {}NAME: {} {}CPU {}% {}MEM: {}Mb {}CPU Total: {} {}",
+            "{}{} PID: {} {} NAME: {} {} CPU {}% {} MEM: {}Mb {}CPU Total: {} {}",
             cursor::Goto(1, cursor_pos.1),
             clear::CurrentLine,
             pid,
             color::Fg(color::Reset),
             name,
-            color::Fg(color::Blue),
-            cpu,
-            color::Fg(color::Reset),
-            mem,
+            self.severity_color(&cpu, 100),
+            &cpu,
+            self.severity_color(&mem, 32000),
+            &mem,
             color::Fg(color::Yellow),
             cpu_total,
             color::Fg(color::Reset)
@@ -97,6 +102,25 @@ impl Term {
                 println!("Error getting stdout.");
                 std::process::exit(1);
             }
+        }
+    }
+
+    fn severity_color(&self, val: &String, max: u32) -> color::Fg<color::Rgb> {
+        let val = {
+            match val.parse::<f64>() {
+                Ok(val) => val,
+                Err(err) => {
+                    println!("Error parsing value: {}", err);
+                    std::process::exit(1);
+                }
+            }
+        };
+        let percent = val as u32 * 100 / max;
+        match percent {
+            _ if percent < 25 => color::Fg(color::Rgb(0, 255, 0)),
+            _ if percent < 50 => color::Fg(color::Rgb(255, 255, 0)),
+            _ if percent < 75 => color::Fg(color::Rgb(255, 165, 0)),
+            _ => color::Fg(color::Rgb(255, 0, 0)),
         }
     }
 }
