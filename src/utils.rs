@@ -15,7 +15,15 @@ impl Utils {
        This function creates a new Utils struct.
     */
     pub fn new() -> Self {
-        let collector = ProcessCollector::new().unwrap();
+        let collector = {
+            match psutil::process::ProcessCollector::new() {
+                Ok(collector) => collector,
+                Err(_) => {
+                    println!("Error creating process collector.");
+                    std::process::exit(1);
+                }
+            }
+        };
         Self { collector }
     }
     /**
@@ -26,16 +34,34 @@ impl Utils {
         let mut pid = None;
 
         for p in self.collector.processes.iter() {
-            if p.1.name().unwrap() == name {
-                pid = Some(p.1.pid())
+            match p.1.name() {
+                Ok(proc_name) => {
+                    if proc_name == name {
+                        pid = Some(p.1.pid());
+                    }
+                }
+                Err(_) => {
+                    println!("Error getting process name.");
+                    std::process::exit(1);
+                }
             }
         }
-        if pid.is_none() {
-            println!("No process found with name: {}", name);
-            std::process::exit(1);
+        let pid = {
+            match pid {
+                Some(pid) => pid,
+                None => {
+                    println!("No process found with name: {}", name);
+                    std::process::exit(1);
+                }
+            }
+        };
+        match self.get_parent_proc(&pid) {
+            Some(pid) => pid,
+            None => {
+                println!("No parent process found.");
+                std::process::exit(1);
+            }
         }
-        pid = self.get_parent_proc(&pid.unwrap());
-        pid.unwrap()
     }
     /**
        ## Utils::get_name()
@@ -44,15 +70,29 @@ impl Utils {
     pub fn get_name(&self, pid: &u32) -> String {
         let mut name = None;
         for p in self.collector.processes.iter() {
-            if p.1.pid() == *pid {
-                name = Some(p.1.name().unwrap())
+            match p.1.name() {
+                Ok(proc_name) => {
+                    if p.1.pid() == *pid {
+                        name = Some(proc_name);
+                    }
+                }
+                Err(_) => {
+                    println!("Error getting process name.");
+                    std::process::exit(1);
+                }
             }
         }
         if name.is_none() {
             println!("No process found with pid: {}", pid);
             std::process::exit(1);
         }
-        name.unwrap()
+        match name {
+            Some(name) => name,
+            None => {
+                println!("No process found with pid: {}", pid);
+                std::process::exit(1);
+            }
+        }
     }
     /**
         ## Utils::get_mem()
@@ -78,14 +118,14 @@ impl Utils {
         ## Utils::get_cpu()
         This function gets the cpu usage of a process by pid.
     */
+
     pub fn get_cpu(&self, pid: &u32) -> Option<f64> {
         let mut cpu: Option<f64> = None;
-
         self.collector.processes.iter().for_each(|p| {
             if p.1.pid() == *pid {
                 match p.1.clone().cpu_percent() {
                     Ok(cpu_percent) => {
-                        cpu = Some(cpu_percent.clone() as f64);
+                        cpu = Some(cpu_percent as f64);
                     }
                     Err(_) => {
                         cpu = Some(0.0);
@@ -144,11 +184,25 @@ impl Utils {
             false => Some(*pid),
             true => {
                 let mut parent_pid = None;
-                self.collector.processes.iter().for_each(|p| {
-                    if p.1.pid() == *pid {
-                        parent_pid = p.1.parent().unwrap().map(|p| p.pid());
-                    }
-                });
+                self.collector
+                    .processes
+                    .iter()
+                    .for_each(|p| match p.1.pid() == *pid {
+                        true => {
+                            parent_pid = {
+                                match p.1.parent() {
+                                    Ok(parent) => match parent {
+                                        Some(parent) => Some(parent.pid()),
+                                        None => None,
+                                    },
+                                    Err(_) => None,
+                                }
+                            }
+                        }
+                        false => {
+                            parent_pid = Some(*pid);
+                        }
+                    });
                 parent_pid
             }
         }
