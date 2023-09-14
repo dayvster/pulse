@@ -52,11 +52,24 @@ The tool will display real-time CPU and MEM usage information for the specified 
 
 ## Options
 
-    --pid <PID>: Specify the PID of the process to monitor.
-    --name <process name>: Specify the name of the process to monitor.
-    --interval <seconds>: Set the update interval in seconds (default: 1 second).
-    --help: Print help information.
-    --version: Print version information.
+```bash
+Usage: pulse [OPTIONS]
+
+Options:
+  -p, --pid <PID>            The process ID of the process we wish to track.
+                             EXAMPLE: 1234
+                             
+  -n, --name <NAME>          The name of the process to track.
+                             EXAMPLE: firefox
+                             
+  -i, --interval <INTERVAL>  The interval in seconds between each sample.
+                             EXAMPLE: 1.5 [default: 1.0]
+  -s <PSMODE>                Similar to the ps command. [possible values: true, false]
+  -h, --help                 Print help
+  -V, --version              Print version
+
+```
+
 
 ## Contributing
 
