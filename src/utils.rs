@@ -10,10 +10,18 @@ pub struct Utils {
 }
 
 impl Utils {
+    /**
+       ## Utils::new()
+       This function creates a new Utils struct.
+    */
     pub fn new() -> Self {
         let collector = ProcessCollector::new().unwrap();
         Self { collector }
     }
+    /**
+       ## Utils::get_pid()
+       This function gets the pid of a process by name.
+    */
     pub fn get_pid(&self, name: &str) -> u32 {
         let mut pid = None;
 
@@ -29,7 +37,10 @@ impl Utils {
         pid = self.get_parent_proc(&pid.unwrap());
         pid.unwrap()
     }
-
+    /**
+       ## Utils::get_name()
+       This function gets the name of a process by pid.
+    */
     pub fn get_name(&self, pid: &u32) -> String {
         let mut name = None;
         for p in self.collector.processes.iter() {
@@ -43,6 +54,10 @@ impl Utils {
         }
         name.unwrap()
     }
+    /**
+        ## Utils::get_mem()
+        This function gets the memory usage of a process by pid.
+    */
     pub fn get_mem(&self, pid: &u32) -> Option<f64> {
         let mut mem = None;
         self.collector.processes.iter().for_each(|p| {
@@ -59,6 +74,10 @@ impl Utils {
         });
         mem
     }
+    /**
+        ## Utils::get_cpu()
+        This function gets the cpu usage of a process by pid.
+    */
     pub fn get_cpu(&self, pid: &u32) -> Option<f64> {
         let mut cpu: Option<f64> = None;
 
@@ -76,6 +95,10 @@ impl Utils {
         });
         cpu
     }
+    /**
+        ## Utils::get_cpu_total()
+        This function gets the total cpu usage of all processes.
+    */
     pub fn get_cpu_total(&self) -> Option<f64> {
         let mut cpu_total = 0.0;
         self.collector
@@ -91,10 +114,17 @@ impl Utils {
             });
         Some(cpu_total)
     }
+    /**
+        ## Utils::get_collector()
+        This function gets the ProcessCollector struct.
+    */
     pub fn get_collector(&self) -> &ProcessCollector {
         &self.collector
     }
-
+    /**
+        ## Utils::has_parent()
+        This function checks if a process has a parent.
+    */
     fn has_parent(&self, pid: &u32) -> bool {
         let mut has_parent = false;
         self.collector.processes.iter().for_each(|p| {
@@ -104,6 +134,11 @@ impl Utils {
         });
         has_parent
     }
+    /**
+        ## Utils::get_parent_proc()
+        This function gets the parent process of a process.
+        If no parent process is found, it returns the process itself.
+    */
     fn get_parent_proc(&self, pid: &u32) -> Option<u32> {
         match self.has_parent(pid) {
             false => Some(*pid),

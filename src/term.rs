@@ -13,6 +13,10 @@ impl Term {
     pub fn new() -> Self {
         Self {}
     }
+    /**
+        ## Print Output
+        Prints the output to the terminal.
+    */
     pub fn print_output(&self, pid: u32, name: &str, cpu: f64, mem: f64, cpu_total: f64) {
         let cpu = format!("{:.2}", cpu);
         let mem = format!("{:.2}", mem);
@@ -42,7 +46,10 @@ impl Term {
         stdout.flush().unwrap();
     }
 }
-
+/**
+   ## Args
+    The command line arguments for the program.
+*/
 #[derive(Parser, Debug)]
 #[command(author, version)]
 pub struct Args {
