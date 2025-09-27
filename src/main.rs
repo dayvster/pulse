@@ -193,17 +193,51 @@ pub struct Args {
 use std::{thread, time};
 fn main() {
     let utils = utils::Utils::new();
-    let pids: Vec<u32> = utils
+    let args = Args::parse();
+    let all_pids: Vec<u32> = utils
         .get_collector()
         .processes
         .iter()
         .filter_map(|p| std::panic::catch_unwind(|| p.1.pid()).ok())
         .collect();
 
+    use std::collections::HashSet;
+    let mut pid_set = HashSet::new();
+
+    // Add PIDs matching --name (if any)
+    if !args.name.is_empty() {
+        for pid in &all_pids {
+            let proc_name = std::panic::catch_unwind(|| utils.get_name(pid))
+                .unwrap_or_else(|_| "N/A".to_string())
+                .to_lowercase();
+            if args
+                .name
+                .iter()
+                .any(|n| proc_name.contains(&n.to_lowercase()))
+            {
+                pid_set.insert(*pid);
+            }
+        }
+    }
+
+    // Add PIDs from --pid (if any)
+    for pid in &args.pid {
+        pid_set.insert(*pid);
+    }
+
+    // If neither --name nor --pid, show all
+    let pids: Vec<u32> = if pid_set.is_empty() {
+        all_pids
+    } else {
+        all_pids
+            .into_iter()
+            .filter(|pid| pid_set.contains(pid))
+            .collect()
+    };
+
     // Wait at least 0.5s to get meaningful CPU stats
     thread::sleep(time::Duration::from_millis(500));
 
-    let args = Args::parse();
     if args.no_interactive {
         print_table(&pids, &utils, args.sortby, args.order, args.limit, args.io);
     } else {
