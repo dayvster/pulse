@@ -1,103 +1,198 @@
-mod term;
+mod color;
+mod tui;
+mod user_utils;
 mod utils;
 
 use clap::Parser;
+use clap::ValueEnum;
 
-fn loop_output(pid: u32, name: &str, interval: f64, term: &term::Term, utils: &utils::Utils) {
-    loop {
-        let cpu = {
-            match utils.get_cpu(&pid) {
-                Some(cpu) => cpu,
-                None => {
-                    println!("No process found with pid: {}", pid);
-                    std::process::exit(1);
-                }
-            }
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+pub enum SortBy {
+    Pid,
+    Name,
+    Cpu,
+    Ram,
+    RamPercent,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
+pub enum Order {
+    Asc,
+    Desc,
+}
+
+fn print_table(pids: &[u32], utils: &utils::Utils, sortby: SortBy, order: Order, limit: usize, show_io: bool) {
+    use color::{GREEN, RED, RESET, YELLOW};
+    if show_io {
+        println!(
+            "{: <6} {: <18} {: <8} {: <10} {: <8} {: <10}",
+            "PID", "NAME", "CPU%", "RAM MB", "RAM %", "IO (B/s)"
+        );
+    } else {
+        println!(
+            "{: <6} {: <18} {: <8} {: <10} {: <8}",
+            "PID", "NAME", "CPU%", "RAM MB", "RAM %"
+        );
+    }
+    let total_mem = sys_info::mem_info()
+        .map(|m| m.total as f64 / 1024.0)
+        .unwrap_or(0.0); // in MB
+    let mut rows = vec![];
+    for pid in pids {
+        let name = std::panic::catch_unwind(|| utils.get_name(pid)).unwrap_or_else(|_| "N/A".to_string());
+        if name == "N/A" {
+            continue;
+        }
+        let cpu = std::panic::catch_unwind(|| utils.get_cpu(pid)).ok().flatten().unwrap_or(0.0);
+        let mem = std::panic::catch_unwind(|| utils.get_mem(pid)).ok().flatten().unwrap_or(0.0);
+        let ram_percent = if total_mem > 0.0 { (mem / total_mem) * 100.0 } else { 0.0 };
+        let io = if show_io {
+            std::panic::catch_unwind(|| utils.get_io(pid)).ok().flatten().unwrap_or(0.0)
+        } else {
+            0.0
         };
-        let mem = {
-            match utils.get_mem(&pid) {
-                Some(mem) => mem,
-                None => {
-                    println!("No process found with pid: {}", pid);
-                    std::process::exit(1);
-                }
+        rows.push((pid, name, cpu, mem, ram_percent, io));
+    }
+
+    // Sort (unchanged)
+    match sortby {
+        SortBy::Pid => {
+            if order == Order::Asc {
+                rows.sort_by_key(|r| *r.0);
+            } else {
+                rows.sort_by_key(|r| std::cmp::Reverse(*r.0));
             }
-        };
-        let cpu_total = {
-            match utils.get_cpu_total() {
-                Some(cpu_total) => cpu_total,
-                None => {
-                    println!("No process found with pid: {}", pid);
-                    std::process::exit(1);
-                }
+        }
+        SortBy::Name => {
+            if order == Order::Asc {
+                rows.sort_by(|a, b| a.1.cmp(&b.1));
+            } else {
+                rows.sort_by(|a, b| b.1.cmp(&a.1));
             }
+        }
+        SortBy::Cpu => {
+            if order == Order::Asc {
+                rows.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
+            } else {
+                rows.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+            }
+        }
+        SortBy::Ram => {
+            if order == Order::Asc {
+                rows.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap_or(std::cmp::Ordering::Equal));
+            } else {
+                rows.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+            }
+        }
+        SortBy::RamPercent => {
+            if order == Order::Asc {
+                rows.sort_by(|a, b| a.4.partial_cmp(&b.4).unwrap_or(std::cmp::Ordering::Equal));
+            } else {
+                rows.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
+            }
+        }
+    }
+
+    for (pid, name, cpu, mem, ram_percent, io) in rows.into_iter().take(limit) {
+        // Colorize CPU%
+        let cpu_color = if cpu >= 50.0 {
+            RED
+        } else if cpu >= 20.0 {
+            YELLOW
+        } else {
+            GREEN
         };
-        term.print_output(pid, name, cpu, mem, cpu_total);
-        std::thread::sleep(std::time::Duration::from_secs_f64(interval));
+        // Colorize RAM (yellow if > 100MB)
+        let mem_color = if mem > 100.0 { YELLOW } else { RESET };
+
+        if show_io {
+            println!(
+                "{: <6} {: <18} {cpu_color}{: <8.1}{RESET} {mem_color}{: <10.1}{RESET} {: <8.1} {: <10.1}",
+                pid,
+                truncate_name(&name, 18),
+                cpu,
+                mem,
+                ram_percent,
+                io,
+                cpu_color = cpu_color,
+                mem_color = mem_color,
+                RESET = RESET
+            );
+        } else {
+            println!(
+                "{: <6} {: <18} {cpu_color}{: <8.1}{RESET} {mem_color}{: <10.1}{RESET} {: <8.1}",
+                pid,
+                truncate_name(&name, 18),
+                cpu,
+                mem,
+                ram_percent,
+                cpu_color = cpu_color,
+                mem_color = mem_color,
+                RESET = RESET
+            );
+        }
     }
 }
 
-fn main() {
-    let args = term::Args::parse();
-    let utils = utils::Utils::new();
-    let term: term::Term = term::Term::new();
-
-    match args.interval {
-        Some(interval) => {
-            if interval <= 0.0 {
-                println!("Don't do that.");
-                std::process::exit(1);
-            }
-        }
-        None => {}
-    }
-
-    if args.name != None {
-        let name = {
-            match args.name {
-                Some(name) => name,
-                None => {
-                    println!("You need to specify a name.");
-                    std::process::exit(1);
-                }
-            }
-        };
-
-        let interval = {
-            match args.interval {
-                Some(interval) => interval,
-                None => 1.0,
-            }
-        };
-
-        let pid = utils.get_pid(&name);
-        loop_output(pid, &name, interval, &term, &utils);
-    } else if args.pid != None {
-        let pid: u32 = {
-            match args.pid {
-                Some(pid) => match pid.parse::<u32>() {
-                    Ok(pid) => pid,
-                    Err(_) => {
-                        println!("Invalid pid.");
-                        std::process::exit(1);
-                    }
-                },
-                None => {
-                    println!("You need to specify a pid.");
-                    std::process::exit(1);
-                }
-            }
-        };
-
-        let interval = {
-            match args.interval {
-                Some(interval) => interval,
-                None => 1.0,
-            }
-        };
-        loop_output(pid, &utils.get_name(&pid), interval, &term, &utils);
+fn truncate_name(name: &str, max_len: usize) -> String {
+    if name.chars().count() > max_len {
+        let mut s = name.chars().take(max_len - 1).collect::<String>();
+        s.push('…');
+        s
     } else {
-        println!("You need to specify either a pid or a name.");
-        println!("Seek help with --help or -h");
+        name.to_string()
+    }
+}
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    #[arg(short, long)]
+    name: Vec<String>,
+    #[arg(long)]
+    pid: Vec<u32>,
+    #[arg(short, long, default_value_t = 1.0)]
+    interval: f64,
+    #[arg(long, default_value_t = false)]
+    no_interactive: bool,
+    #[arg(short = 'A', long)]
+    all: bool,
+    #[arg(short = 'a', long)]
+    current_user: bool,
+    #[arg(long, value_enum, default_value_t = SortBy::Pid)]
+    sortby: SortBy,
+    #[arg(long, value_enum, default_value_t = Order::Asc)]
+    order: Order,
+    #[arg(long, default_value_t = 30)]
+    limit: usize,
+    #[arg(long, default_value_t = false)]
+    io: bool,
+}
+
+use std::{thread, time};
+fn main() {
+    let utils = utils::Utils::new();
+    let pids: Vec<u32> = utils
+        .get_collector()
+        .processes
+        .iter()
+        .filter_map(|p| std::panic::catch_unwind(|| p.1.pid()).ok())
+        .collect();
+
+    // Wait at least 0.5s to get meaningful CPU stats
+    thread::sleep(time::Duration::from_millis(500));
+
+    let args = Args::parse();
+    if args.no_interactive {
+        print_table(&pids, &utils, args.sortby, args.order, args.limit, args.io);
+    } else {
+        // Interactive loop
+        loop {
+            // Clear screen (ANSI escape)
+            print!("\x1b[2J\x1b[H");
+            print_table(&pids, &utils, args.sortby, args.order, args.limit, args.io);
+            // Sleep for 1s between updates
+            thread::sleep(time::Duration::from_secs(1));
+        }
     }
 }
