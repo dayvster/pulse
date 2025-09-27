@@ -5,6 +5,7 @@ mod utils;
 
 use clap::Parser;
 use clap::ValueEnum;
+use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum SortBy {
@@ -165,6 +166,13 @@ fn truncate_name(name: &str, max_len: usize) -> String {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, ValueEnum, Debug)]
+pub enum OutputMode {
+    Pretty,
+    Json,
+    Csv,
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
@@ -188,6 +196,16 @@ pub struct Args {
     limit: usize,
     #[arg(long, default_value_t = false)]
     io: bool,
+    #[arg(long, default_value_t = false)]
+    benchmark: bool,
+    #[arg(long, default_value_t = 10.0)]
+    duration: f64,
+    #[arg(long, default_value_t = 1)]
+    runs: usize,
+    #[arg(long)]
+    cmd: Option<String>,
+    #[arg(long, value_enum, default_value_t = OutputMode::Pretty)]
+    output: OutputMode,
 }
 
 use std::{thread, time};
@@ -235,19 +253,231 @@ fn main() {
             .collect()
     };
 
-    // Wait at least 0.5s to get meaningful CPU stats
-    thread::sleep(time::Duration::from_millis(500));
-
-    if args.no_interactive {
-        print_table(&pids, &utils, args.sortby, args.order, args.limit, args.io);
+    if args.benchmark {
+        if let Some(cmd) = &args.cmd {
+            // Benchmark command execution time and resource usage
+            use std::process::{Command, Stdio};
+            use std::thread::sleep;
+            use std::time::{Duration, Instant};
+            let utils = utils::Utils::new();
+            let mut times = vec![];
+            let mut max_cpus = vec![];
+            let mut max_mems = vec![];
+            for _ in 0..args.runs {
+                let mut child = Command::new("sh")
+                    .arg("-c")
+                    .arg(cmd)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .expect("Failed to spawn command");
+                let pid = child.id() as u32;
+                let mut max_cpu = 0.0;
+                let mut max_mem = 0.0;
+                let poll_interval = Duration::from_millis(50);
+                let start = Instant::now();
+                loop {
+                    // Check if process is still running
+                    match child.try_wait() {
+                        Ok(Some(_status)) => break,
+                        Ok(None) => {
+                            // Sample CPU and MEM
+                            if let Some(cpu) = utils.get_cpu(&pid) {
+                                if cpu > max_cpu {
+                                    max_cpu = cpu;
+                                }
+                            }
+                            if let Some(mem) = utils.get_mem(&pid) {
+                                if mem > max_mem {
+                                    max_mem = mem;
+                                }
+                            }
+                            sleep(poll_interval);
+                        }
+                        Err(_) => break,
+                    }
+                }
+                let elapsed = start.elapsed().as_secs_f64();
+                times.push(elapsed);
+                max_cpus.push(max_cpu);
+                max_mems.push(max_mem);
+            }
+            let avg = times.iter().sum::<f64>() / times.len() as f64;
+            let min = times.iter().cloned().fold(f64::INFINITY, f64::min);
+            let max = times.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max_cpu = max_cpus.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max_mem = max_mems.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            match args.output {
+                OutputMode::Pretty => {
+                    let mut table = Table::new();
+                    table
+                        .load_preset(UTF8_FULL)
+                        .set_content_arrangement(ContentArrangement::Dynamic)
+                        .set_header(vec![
+                            Cell::new("Command").fg(Color::Cyan),
+                            Cell::new("Runs").fg(Color::Cyan),
+                            Cell::new("Avg (s)").fg(Color::Green),
+                            Cell::new("Min (s)").fg(Color::Yellow),
+                            Cell::new("Max (s)").fg(Color::Red),
+                            Cell::new("Max CPU% ").fg(Color::Red),
+                            Cell::new("Max RAM MB").fg(Color::Red),
+                        ]);
+                    table.add_row(vec![
+                        Cell::new(cmd).fg(Color::White),
+                        Cell::new(args.runs).fg(Color::White),
+                        Cell::new(format!("{:.3}", avg)).fg(Color::Green),
+                        Cell::new(format!("{:.3}", min)).fg(Color::Yellow),
+                        Cell::new(format!("{:.3}", max)).fg(Color::Red),
+                        Cell::new(format!("{:.2}", max_cpu)).fg(Color::Red),
+                        Cell::new(format!("{:.2}", max_mem)).fg(Color::Red),
+                    ]);
+                    println!("\n{}", table);
+                }
+                OutputMode::Json => {
+                    let obj = serde_json::json!({
+                        "command": cmd,
+                        "runs": args.runs,
+                        "avg": avg,
+                        "min": min,
+                        "max": max,
+                        "max_cpu": max_cpu,
+                        "max_mem": max_mem
+                    });
+                    println!("{}", serde_json::to_string_pretty(&obj).unwrap());
+                }
+                OutputMode::Csv => {
+                    println!("command,runs,avg,min,max,max_cpu,max_mem");
+                    println!("{}", format!("{}", cmd.replace(",", " "))); // avoid CSV breakage
+                    println!(
+                        "{},{:.3},{:.3},{:.3},{:.2},{:.2}",
+                        args.runs, avg, min, max, max_cpu, max_mem
+                    );
+                }
+            }
+        } else {
+            // Benchmark process stats (per PID, no aggregation)
+            let samples = (args.duration / args.interval).ceil() as usize;
+            let mut cpu_samples = vec![vec![]; pids.len()];
+            let mut mem_samples = vec![vec![]; pids.len()];
+            for _ in 0..samples {
+                for (i, pid) in pids.iter().enumerate() {
+                    let cpu = std::panic::catch_unwind(|| utils.get_cpu(pid))
+                        .ok()
+                        .flatten()
+                        .unwrap_or(0.0);
+                    let mem = std::panic::catch_unwind(|| utils.get_mem(pid))
+                        .ok()
+                        .flatten()
+                        .unwrap_or(0.0);
+                    cpu_samples[i].push(cpu);
+                    mem_samples[i].push(mem);
+                }
+                thread::sleep(time::Duration::from_secs_f64(args.interval));
+            }
+            match args.output {
+                OutputMode::Pretty => {
+                    let mut table = Table::new();
+                    table
+                        .load_preset(UTF8_FULL)
+                        .set_content_arrangement(ContentArrangement::Dynamic)
+                        .set_header(vec![
+                            Cell::new("PID").fg(Color::Cyan),
+                            Cell::new("NAME").fg(Color::Cyan),
+                            Cell::new("Avg CPU% ").fg(Color::Green),
+                            Cell::new("Max CPU% ").fg(Color::Red),
+                            Cell::new("Avg RAM MB").fg(Color::Green),
+                            Cell::new("Max RAM MB").fg(Color::Red),
+                        ]);
+                    for (i, pid) in pids.iter().enumerate() {
+                        let name = utils.get_name(pid);
+                        let avg_cpu =
+                            cpu_samples[i].iter().sum::<f64>() / cpu_samples[i].len() as f64;
+                        let max_cpu = cpu_samples[i]
+                            .iter()
+                            .cloned()
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        let avg_mem =
+                            mem_samples[i].iter().sum::<f64>() / mem_samples[i].len() as f64;
+                        let max_mem = mem_samples[i]
+                            .iter()
+                            .cloned()
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        table.add_row(vec![
+                            Cell::new(pid).fg(Color::White),
+                            Cell::new(truncate_name(&name, 18)).fg(Color::White),
+                            Cell::new(format!("{:.2}", avg_cpu)).fg(Color::Green),
+                            Cell::new(format!("{:.2}", max_cpu)).fg(Color::Red),
+                            Cell::new(format!("{:.2}", avg_mem)).fg(Color::Green),
+                            Cell::new(format!("{:.2}", max_mem)).fg(Color::Red),
+                        ]);
+                    }
+                    println!("\n{}", table);
+                }
+                OutputMode::Json => {
+                    let mut arr = vec![];
+                    for (i, pid) in pids.iter().enumerate() {
+                        let name = utils.get_name(pid);
+                        let avg_cpu =
+                            cpu_samples[i].iter().sum::<f64>() / cpu_samples[i].len() as f64;
+                        let max_cpu = cpu_samples[i]
+                            .iter()
+                            .cloned()
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        let avg_mem =
+                            mem_samples[i].iter().sum::<f64>() / mem_samples[i].len() as f64;
+                        let max_mem = mem_samples[i]
+                            .iter()
+                            .cloned()
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        arr.push(serde_json::json!({
+                            "pid": pid,
+                            "name": name,
+                            "avg_cpu": avg_cpu,
+                            "max_cpu": max_cpu,
+                            "avg_mem": avg_mem,
+                            "max_mem": max_mem
+                        }));
+                    }
+                    println!("{}", serde_json::to_string_pretty(&arr).unwrap());
+                }
+                OutputMode::Csv => {
+                    println!("pid,name,avg_cpu,max_cpu,avg_mem,max_mem");
+                    for (i, pid) in pids.iter().enumerate() {
+                        let name = utils.get_name(pid).replace(",", " ");
+                        let avg_cpu =
+                            cpu_samples[i].iter().sum::<f64>() / cpu_samples[i].len() as f64;
+                        let max_cpu = cpu_samples[i]
+                            .iter()
+                            .cloned()
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        let avg_mem =
+                            mem_samples[i].iter().sum::<f64>() / mem_samples[i].len() as f64;
+                        let max_mem = mem_samples[i]
+                            .iter()
+                            .cloned()
+                            .fold(f64::NEG_INFINITY, f64::max);
+                        println!(
+                            "{},{},{:.2},{:.2},{:.2},{:.2}",
+                            pid, name, avg_cpu, max_cpu, avg_mem, max_mem
+                        );
+                    }
+                }
+            }
+        }
     } else {
-        // Interactive loop
-        loop {
-            // Clear screen (ANSI escape)
-            print!("\x1b[2J\x1b[H");
+        // Wait at least 0.5s to get meaningful CPU stats
+        thread::sleep(time::Duration::from_millis(500));
+        if args.no_interactive {
             print_table(&pids, &utils, args.sortby, args.order, args.limit, args.io);
-            // Sleep for 1s between updates
-            thread::sleep(time::Duration::from_secs(1));
+        } else {
+            // Interactive loop
+            loop {
+                // Clear screen (ANSI escape)
+                print!("\x1b[2J\x1b[H");
+                print_table(&pids, &utils, args.sortby, args.order, args.limit, args.io);
+                // Sleep for 1s between updates
+                thread::sleep(time::Duration::from_secs(1));
+            }
         }
     }
 }
