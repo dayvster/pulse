@@ -62,6 +62,7 @@ Show top 10 processes by CPU, descending:
 pulse --sortby cpu --order desc --limit 10
 ```
 
+
 Show IO stats as well:
 
 ```bash
@@ -73,6 +74,36 @@ Non-interactive (single-shot, for scripts):
 ```bash
 pulse --no-interactive --sortby ram --limit 5
 ```
+
+---
+
+## 🏁 Benchmarking
+
+Pulse can benchmark process stats or command execution, reporting timing and resource usage.
+
+### Benchmark a command (with max CPU and RAM usage):
+
+```bash
+pulse --benchmark --cmd 'openssl speed sha256' --runs 2 --output pretty
+```
+
+Output example:
+
+```
+┌───────────────┬──────┬─────────┬─────────┬─────────┬───────────┬────────────┐
+│ Command       ┆ Runs ┆ Avg (s) ┆ Min (s) ┆ Max (s) ┆ Max CPU%  ┆ Max RAM MB │
+╞═══════════════╪══════╪═════════╪═════════╪═════════╪═══════════╪════════════╡
+│ openssl ...   ┆ 2    ┆ 0.50    ┆ 0.49    ┆ 0.51    ┆ 98.00     ┆ 42.00      │
+└───────────────┴──────┴─────────┴─────────┴─────────┴───────────┴────────────┘
+```
+
+### Benchmark process stats (per-PID):
+
+```bash
+pulse --benchmark --name bash --duration 3 --interval 0.5 --output pretty
+```
+
+---
 
 ---
 
