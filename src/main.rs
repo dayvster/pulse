@@ -21,7 +21,14 @@ pub enum Order {
     Desc,
 }
 
-fn print_table(pids: &[u32], utils: &utils::Utils, sortby: SortBy, order: Order, limit: usize, show_io: bool) {
+fn print_table(
+    pids: &[u32],
+    utils: &utils::Utils,
+    sortby: SortBy,
+    order: Order,
+    limit: usize,
+    show_io: bool,
+) {
     use color::{GREEN, RED, RESET, YELLOW};
     if show_io {
         println!(
@@ -39,15 +46,29 @@ fn print_table(pids: &[u32], utils: &utils::Utils, sortby: SortBy, order: Order,
         .unwrap_or(0.0); // in MB
     let mut rows = vec![];
     for pid in pids {
-        let name = std::panic::catch_unwind(|| utils.get_name(pid)).unwrap_or_else(|_| "N/A".to_string());
+        let name =
+            std::panic::catch_unwind(|| utils.get_name(pid)).unwrap_or_else(|_| "N/A".to_string());
         if name == "N/A" {
             continue;
         }
-        let cpu = std::panic::catch_unwind(|| utils.get_cpu(pid)).ok().flatten().unwrap_or(0.0);
-        let mem = std::panic::catch_unwind(|| utils.get_mem(pid)).ok().flatten().unwrap_or(0.0);
-        let ram_percent = if total_mem > 0.0 { (mem / total_mem) * 100.0 } else { 0.0 };
+        let cpu = std::panic::catch_unwind(|| utils.get_cpu(pid))
+            .ok()
+            .flatten()
+            .unwrap_or(0.0);
+        let mem = std::panic::catch_unwind(|| utils.get_mem(pid))
+            .ok()
+            .flatten()
+            .unwrap_or(0.0);
+        let ram_percent = if total_mem > 0.0 {
+            (mem / total_mem) * 100.0
+        } else {
+            0.0
+        };
         let io = if show_io {
-            std::panic::catch_unwind(|| utils.get_io(pid)).ok().flatten().unwrap_or(0.0)
+            std::panic::catch_unwind(|| utils.get_io(pid))
+                .ok()
+                .flatten()
+                .unwrap_or(0.0)
         } else {
             0.0
         };
