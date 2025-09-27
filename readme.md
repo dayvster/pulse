@@ -1,87 +1,109 @@
+
 # Pulse
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![MIT License](https://img.shields.io/github/license/dayvster/pulse)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/pulse-cli?label=crates.io)](https://crates.io/crates/pulse-cli)
+[![Docs.rs](https://img.shields.io/docsrs/pulse-cli?label=docs.rs)](https://docs.rs/pulse-cli)
+[![GitHub issues](https://img.shields.io/github/issues/dayvster/pulse)](https://github.com/dayvster/pulse/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/dayvster/pulse)](https://github.com/dayvster/pulse/pulls)
+[![GitHub stars](https://img.shields.io/github/stars/dayvster/pulse?style=social)](https://github.com/dayvster/pulse/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/dayvster/pulse?style=social)](https://github.com/dayvster/pulse/network/members)
+[![Last commit](https://img.shields.io/github/last-commit/dayvster/pulse)](https://github.com/dayvster/pulse/commits/dev)
+[![Repo size](https://img.shields.io/github/repo-size/dayvster/pulse)](https://github.com/dayvster/pulse)
 
-## Description
+---
 
-A command-line tool written in Rust to display live updating CPU and MEM usage of a specified PID or process name.
+**Pulse** is a modern, blazing-fast, and highly customizable command-line process monitor written in Rust. It provides real-time, color-coded stats for your system's processes, including CPU, memory, and optional IO usage. Pulse is designed for developers, sysadmins, and power users who want a beautiful, robust, and scriptable alternative to `top` and `htop`.
 
-## Table of Contents
+---
 
-- [Pulse](#pulse)
-  - [Description](#description)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Options](#options)
-  - [Contributing](#contributing)
-  - [License](#license)
+## 🚀 Features
 
-## Features
+- **Real-time, interactive process table** with color-coded CPU, RAM, and optional IO stats
+- **Sort and limit**: Sort by PID, name, CPU, RAM, or RAM%, ascending or descending, and limit the number of displayed processes
+- **Flexible filtering**: Track by PID, process name, all, or current user
+- **Scriptable**: Use `--no-interactive` for single-shot output (great for scripts)
+- **Cross-platform**: Linux and macOS supported
+- **Fast and robust**: Built with Rust, handles panics gracefully
+- **MIT Licensed**: Free and open source
 
-- Real-time monitoring of CPU and MEM usage for a specific process.
-- Supports monitoring processes by PID or process name.
-- Customizable update interval.
-- Currently Supports Linux and MacOS.
+---
 
-## Installation
+## 📦 Installation
 
-You can install this tool using `cargo`, the Rust package manager:
+**With Cargo:**
 
 ```bash
 git clone https://github.com/dayvster/pulse.git
 cd pulse
-cargo build --release && cp target/release/pulse /usr/local/bin
+cargo build --release
+sudo cp target/release/pulse /usr/local/bin
 ```
 
-## Usage
+---
 
-To use Pulse, simply run it from the command line with the desired PID or process name:
+## 🖥️ Usage
+
+Monitor Firefox by name, updating every 0.5s:
 
 ```bash
 pulse -n firefox -i 0.5
 ```
 
-The above command will monitor the CPU and MEM usage of the Firefox process with an update interval of 0.5 seconds.
+Monitor a process by PID:
 
 ```bash
 pulse -p 1234
 ```
 
-The above command will monitor the CPU and MEM usage of the process with PID 1234 with the default update interval of 1 second.
+Show top 10 processes by CPU, descending:
 
-The tool will display real-time CPU and MEM usage information for the specified process. To exit the monitoring mode, press Ctrl + C.
+```bash
+pulse --sortby cpu --order desc --limit 10
+```
 
-## Options
+Show IO stats as well:
+
+```bash
+pulse --io
+```
+
+Non-interactive (single-shot, for scripts):
+
+```bash
+pulse --no-interactive --sortby ram --limit 5
+```
+
+---
+
+## ⚙️ Options
 
 ```bash
 Usage: pulse [OPTIONS]
 
 Options:
-  -p, --pid <PID>            The process ID of the process we wish to track.
-                             EXAMPLE: 1234
-                             
-  -n, --name <NAME>          The name of the process to track.
-                             EXAMPLE: firefox
-                             
-  -i, --interval <INTERVAL>  The interval in seconds between each sample.
-                             EXAMPLE: 1.5 [default: 1.0]
+  -p, --pid <PID>            The process ID to track (can be repeated)
+  -n, --name <NAME>          The process name to track (can be repeated)
+  -i, --interval <INTERVAL>  Update interval in seconds [default: 1.0]
+  --no-interactive           Print once and exit (for scripts)
+  --sortby <SORTBY>          Sort by: pid, name, cpu, ram, rampercent [default: pid]
+  --order <ORDER>            Sort order: asc, desc [default: asc]
+  --limit <LIMIT>            Limit number of displayed processes [default: 30]
+  --io                       Show IO (disk read/write) column
+  -A, --all                  Show all processes
+  -a, --current-user         Show only current user's processes
   -h, --help                 Print help
   -V, --version              Print version
 ```
 
+---
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome! If you'd like to contribute to the Pulse project, please follow these steps:
+Contributions are welcome! Please fork the repo, create a feature branch, and submit a pull request. For bugs, ideas, or questions, open an [issue](https://github.com/dayvster/pulse/issues).
 
-1) Fork the repository.
-2) Create a new branch for your feature or bugfix: git checkout -b feature-name.
-3) Make your changes and commit them: git commit -m 'Add some feature'.
-4) Push to the branch: git push origin feature-name.
-5) Create a pull request on GitHub.
+---
 
-## License
+## 📄 License
 
-Pulse is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Pulse is licensed under the MIT License. See [LICENSE](LICENSE) for details.
