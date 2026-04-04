@@ -1,19 +1,16 @@
+# ⚠️ This project is deprecated
 
-# Pulse
+[![Deprecated](https://img.shields.io/badge/status-deprecated-red)](https://github.com/dayvster/mon)
 
-[![MIT License](https://img.shields.io/github/license/dayvster/pulse)](LICENSE)
-[![Crates.io](https://img.shields.io/crates/v/pulse-cli?label=crates.io)](https://crates.io/crates/pulse-cli)
-[![Docs.rs](https://img.shields.io/docsrs/pulse-cli?label=docs.rs)](https://docs.rs/pulse-cli)
-[![GitHub issues](https://img.shields.io/github/issues/dayvster/pulse)](https://github.com/dayvster/pulse/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/dayvster/pulse)](https://github.com/dayvster/pulse/pulls)
-[![GitHub stars](https://img.shields.io/github/stars/dayvster/pulse?style=social)](https://github.com/dayvster/pulse/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/dayvster/pulse?style=social)](https://github.com/dayvster/pulse/network/members)
-[![Last commit](https://img.shields.io/github/last-commit/dayvster/pulse)](https://github.com/dayvster/pulse/commits/dev)
-[![Repo size](https://img.shields.io/github/repo-size/dayvster/pulse)](https://github.com/dayvster/pulse)
+**This project is no longer maintained.** Development has moved to [mon](https://github.com/dayvster/mon).
 
 ---
 
-**Pulse** is a modern, blazing-fast, and highly customizable command-line process monitor written in Rust. It provides real-time, color-coded stats for your system's processes, including CPU, memory, and optional IO usage. Pulse is designed for developers, sysadmins, and power users who want a beautiful, robust, and scriptable alternative to `top` and `htop`.
+# Pulse
+
+---
+
+**Pulse** is a modern, highly customizable command-line process monitor written in Rust. It provides real-time, color-coded stats for your system's processes, including CPU, memory, and optional IO usage. Pulse is designed for developers, sysadmins, and power users who want a beautiful, robust, and scriptable alternative to `top` and `htop`.
 
 ---
 
